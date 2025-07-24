@@ -69,77 +69,139 @@
                     $totalRecipes = 0;
                     $totalCookTime = 0;
                     $totalPrepTime = 0;
+                    $debugInfo = [];
                     
-                    // Get all recipes from the meal plan
-                    foreach($mealPlan->meals ?? [] as $day => $dayMeals) {
-                        foreach($dayMeals as $mealType => $recipeData) {
-                            $recipeIds = is_array($recipeData) ? $recipeData : [$recipeData];
-                            foreach($recipeIds as $recipeId) {
-                                $recipe = \App\Models\Recipe::with(['ingredients.defaultUnit'])->find($recipeId);
-                                if($recipe) {
-                                    $totalRecipes++;
-                                    $totalCookTime += $recipe->cook_time ?? 0;
-                                    $totalPrepTime += $recipe->prep_time ?? 0;
+                    // Debug: Check if meal plan has any meals
+                    $debugInfo['meal_plan_meals'] = $mealPlan->meals ?? [];
+                    $debugInfo['meal_plan_id'] = $mealPlan->id;
+                    
+                    // Get all recipes using the model method
+                    $allRecipes = $mealPlan->getAllRecipes();
+                    $debugInfo['all_recipes_count'] = $allRecipes->count();
+                    $debugInfo['all_recipes'] = $allRecipes->pluck('title', 'id')->toArray();
+                    
+                    foreach($allRecipes as $recipe) {
+                        $totalRecipes++;
+                        $totalCookTime += $recipe->cook_time ?? 0;
+                        $totalPrepTime += $recipe->prep_time ?? 0;
+                        
+                        // Load ingredients with pivot data and units
+                        $recipe->load(['ingredients' => function($query) {
+                            $query->withPivot(['amount', 'unit', 'unit_id', 'canonical_amount']);
+                        }, 'ingredients.defaultUnit']);
+                        
+                        $debugInfo['recipe_' . $recipe->id] = [
+                            'title' => $recipe->title,
+                            'ingredients_count' => $recipe->ingredients->count(),
+                            'ingredients' => $recipe->ingredients->map(function($ing) {
+                                return [
+                                    'name' => $ing->name,
+                                    'amount' => $ing->pivot->amount ?? 'null',
+                                    'unit_id' => $ing->pivot->unit_id ?? 'null',
+                                    'unit_slug' => $ing->pivot->unit ?? 'null'
+                                ];
+                            })->toArray()
+                        ];
+                        
+                        // Process each ingredient with unit conversion
+                        foreach($recipe->ingredients as $ingredient) {
+                            $ingredientName = $ingredient->name;
+                            $amount = $ingredient->pivot->amount ?? 0;
+                            $unit = null;
+                            
+                            // Try to get unit from unit_id first, then fallback to unit slug
+                            if ($ingredient->pivot->unit_id) {
+                                $unit = \App\Models\Unit::find($ingredient->pivot->unit_id);
+                            } elseif ($ingredient->pivot->unit) {
+                                $unit = \App\Models\Unit::where('slug', $ingredient->pivot->unit)->first();
+                            }
+                            
+                            if ($amount > 0 && $unit) {
+                                // Convert to canonical amount (base unit)
+                                try {
+                                    $canonicalAmount = $unitConverter->convertToCanonical($amount, $unit, $ingredient);
+                                    $baseUnit = $unitConverter->getBaseUnitForType($unit->type);
                                     
-                                    // Process each ingredient with unit conversion
-                                    foreach($recipe->ingredients as $ingredient) {
-                                        $ingredientName = $ingredient->name;
-                                        $amount = $ingredient->pivot->amount ?? 0;
-                                        $unit = $ingredient->pivot->unit_id ? \App\Models\Unit::find($ingredient->pivot->unit_id) : null;
-                                        
-                                        if ($amount > 0 && $unit) {
-                                            // Convert to canonical amount (base unit)
-                                            try {
-                                                $canonicalAmount = $unitConverter->convertToCanonical($amount, $unit, $ingredient);
-                                                $baseUnit = $unitConverter->getBaseUnitForType($unit->type);
-                                                
-                                                // Initialize or add to aggregated ingredients
-                                                if (!$aggregatedIngredients->has($ingredientName)) {
-                                                    $aggregatedIngredients->put($ingredientName, [
-                                                        'name' => $ingredientName,
-                                                        'canonical_amount' => 0,
-                                                        'display_unit' => $ingredient->defaultUnit ?: $baseUnit,
-                                                        'instances' => []
-                                                    ]);
-                                                }
-                                                
-                                                // Add canonical amount
-                                                $current = $aggregatedIngredients->get($ingredientName);
-                                                $current['canonical_amount'] += $canonicalAmount;
-                                                $current['instances'][] = [
-                                                    'amount' => $amount,
-                                                    'unit' => $unit->slug,
-                                                    'recipe' => $recipe->title
-                                                ];
-                                                $aggregatedIngredients->put($ingredientName, $current);
-                                            } catch (\Exception $e) {
-                                                // Fallback for unit conversion errors
-                                                if (!$aggregatedIngredients->has($ingredientName)) {
-                                                    $aggregatedIngredients->put($ingredientName, [
-                                                        'name' => $ingredientName,
-                                                        'canonical_amount' => 0,
-                                                        'display_unit' => $unit,
-                                                        'instances' => []
-                                                    ]);
-                                                }
-                                                
-                                                $current = $aggregatedIngredients->get($ingredientName);
-                                                $current['instances'][] = [
-                                                    'amount' => $amount,
-                                                    'unit' => $unit->slug,
-                                                    'recipe' => $recipe->title,
-                                                    'error' => true
-                                                ];
-                                                $aggregatedIngredients->put($ingredientName, $current);
-                                            }
-                                        }
+                                    // Initialize or add to aggregated ingredients
+                                    if (!$aggregatedIngredients->has($ingredientName)) {
+                                        $aggregatedIngredients->put($ingredientName, [
+                                            'name' => $ingredientName,
+                                            'canonical_amount' => 0,
+                                            'display_unit' => $ingredient->defaultUnit ?: $baseUnit,
+                                            'instances' => []
+                                        ]);
                                     }
+                                    
+                                    // Add canonical amount
+                                    $current = $aggregatedIngredients->get($ingredientName);
+                                    $current['canonical_amount'] += $canonicalAmount;
+                                    $current['instances'][] = [
+                                        'amount' => $amount,
+                                        'unit' => $unit->slug,
+                                        'recipe' => $recipe->title
+                                    ];
+                                    $aggregatedIngredients->put($ingredientName, $current);
+                                } catch (\Exception $e) {
+                                    // Fallback for unit conversion errors
+                                    if (!$aggregatedIngredients->has($ingredientName)) {
+                                        $aggregatedIngredients->put($ingredientName, [
+                                            'name' => $ingredientName,
+                                            'canonical_amount' => 0,
+                                            'display_unit' => $unit,
+                                            'instances' => []
+                                        ]);
+                                    }
+                                    
+                                    $current = $aggregatedIngredients->get($ingredientName);
+                                    $current['instances'][] = [
+                                        'amount' => $amount,
+                                        'unit' => $unit->slug,
+                                        'recipe' => $recipe->title,
+                                        'error' => true,
+                                        'error_message' => $e->getMessage()
+                                    ];
+                                    $aggregatedIngredients->put($ingredientName, $current);
                                 }
+                            } elseif ($amount > 0) {
+                                // Handle ingredients without units (fallback)
+                                if (!$aggregatedIngredients->has($ingredientName)) {
+                                    $aggregatedIngredients->put($ingredientName, [
+                                        'name' => $ingredientName,
+                                        'canonical_amount' => 0,
+                                        'display_unit' => null,
+                                        'instances' => []
+                                    ]);
+                                }
+                                
+                                $current = $aggregatedIngredients->get($ingredientName);
+                                $current['instances'][] = [
+                                    'amount' => $amount,
+                                    'unit' => 'no unit',
+                                    'recipe' => $recipe->title,
+                                    'warning' => 'No unit specified'
+                                ];
+                                $aggregatedIngredients->put($ingredientName, $current);
                             }
                         }
                     }
+                    
+                    $debugInfo['aggregated_ingredients_count'] = $aggregatedIngredients->count();
                 @endphp
                 
+                <!-- Debug Information (temporary) -->
+                @if(config('app.debug'))
+                    <div class="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <h4 class="font-medium text-yellow-800 mb-2">Debug Info:</h4>
+                        <div class="text-sm text-yellow-700">
+                            <p><strong>Meal Plan ID:</strong> {{ $debugInfo['meal_plan_id'] }}</p>
+                            <p><strong>Raw Meals Data:</strong> {{ json_encode($debugInfo['meal_plan_meals']) }}</p>
+                            <p><strong>Recipes Found:</strong> {{ $debugInfo['all_recipes_count'] }}</p>
+                            <p><strong>Recipe Titles:</strong> {{ json_encode($debugInfo['all_recipes']) }}</p>
+                            <p><strong>Aggregated Ingredients:</strong> {{ $debugInfo['aggregated_ingredients_count'] }}</p>
+                        </div>
+                    </div>
+                @endif
+
                 <!-- Meal Plan Stats -->
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                     <div class="bg-blue-50 rounded-lg p-4">
@@ -161,8 +223,9 @@
                 </div>
                 
                 <!-- Shopping List -->
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    @foreach($aggregatedIngredients as $ingredientData)
+                @if($aggregatedIngredients->count() > 0)
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        @foreach($aggregatedIngredients as $ingredientData)
                         @php
                             $displayUnit = $ingredientData['display_unit'];
                             $canonicalAmount = $ingredientData['canonical_amount'];
@@ -174,9 +237,15 @@
                                 try {
                                     $displayAmount = $unitConverter->convertFromCanonical($canonicalAmount, $displayUnit);
                                 } catch (\Exception $e) {
+                                    // Fallback: show canonical amount with base unit
                                     $displayAmount = $canonicalAmount;
+                                    $baseUnit = $unitConverter->getBaseUnitForType($displayUnit->type);
+                                    $displayUnit = $baseUnit;
                                 }
                             }
+                            
+                            // Debug: show calculation details if there are multiple instances
+                            $showCalculation = count($instances) > 1;
                         @endphp
                         <div class="flex items-start space-x-2 p-3 bg-gray-50 rounded-lg">
                             <input type="checkbox" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mt-0.5">
@@ -184,18 +253,30 @@
                                 <div class="font-medium text-gray-900">{{ $ingredientData['name'] }}</div>
                                 
                                 @if($displayAmount > 0 && $displayUnit)
-                                    <div class="text-sm text-gray-500">
-                                        {{ $displayAmount == floor($displayAmount) ? number_format($displayAmount, 0) : number_format($displayAmount, 2) }} 
-                                        {{ $displayUnit->slug ?? $displayUnit }}
+                                    <div class="text-sm font-medium text-blue-600">
+                                        Total: {{ $displayAmount == floor($displayAmount) ? number_format($displayAmount, 0) : number_format($displayAmount, 2) }} 
+                                        {{ is_object($displayUnit) ? $displayUnit->slug : $displayUnit }}
+                                    </div>
+                                @elseif($canonicalAmount > 0)
+                                    <div class="text-sm font-medium text-blue-600">
+                                        Total: {{ $canonicalAmount == floor($canonicalAmount) ? number_format($canonicalAmount, 0) : number_format($canonicalAmount, 2) }} 
+                                        (base units)
                                     </div>
                                 @endif
                                 
-                                @if(count($instances) > 1)
+                                @if(count($instances) >= 1)
                                     <div class="text-xs text-gray-400 mt-1">
-                                        From {{ count($instances) }} recipes:
+                                        @if(count($instances) > 1)
+                                            Combined from {{ count($instances) }} recipes:
+                                        @else
+                                            From recipe:
+                                        @endif
                                         @foreach($instances as $instance)
                                             <span class="inline-block">
                                                 {{ $instance['amount'] }}{{ $instance['unit'] }}
+                                                @if(isset($instance['recipe']))
+                                                    <span class="text-gray-300">({{ $instance['recipe'] }})</span>
+                                                @endif
                                                 @if(isset($instance['error']))
                                                     <span class="text-red-500">⚠</span>
                                                 @endif
@@ -207,7 +288,19 @@
                             </div>
                         </div>
                     @endforeach
-                </div>
+                    </div>
+                @else
+                    <div class="text-center py-12">
+                        <div class="text-gray-500 text-lg mb-2">No ingredients found</div>
+                        <div class="text-sm text-gray-400">
+                            @if($totalRecipes == 0)
+                                Add some recipes to your meal plan to see ingredients here.
+                            @else
+                                The recipes in your meal plan don't have any ingredients with proper units set up.
+                            @endif
+                        </div>
+                    </div>
+                @endif
             </div>
         </div>
     @endif

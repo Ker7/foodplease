@@ -114,22 +114,52 @@ class RecipeController extends Controller
     public function storeIngredient(Request $request, Recipe $recipe)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
+            'name' => 'nullable|string|max:255',
+            'existing_ingredient_id' => 'nullable|exists:ingredients,id',
             'amount' => 'nullable|numeric|min:0',
-            'unit' => 'nullable|string|max:50'
+            'unit_id' => 'required|exists:units,id'
         ]);
 
-        // Find or create the ingredient
-        $ingredient = Ingredient::firstOrCreate(
-            ['name' => $validated['name']],
-            ['default_unit' => $validated['unit']]
-        );
+        $unit = \App\Models\Unit::find($validated['unit_id']);
+        $unitConverter = new \App\Services\UnitConverter();
 
-        // Attach ingredient to recipe with amount and unit
+        // Determine which ingredient to use
+        if ($validated['existing_ingredient_id']) {
+            // Using existing ingredient
+            $ingredient = Ingredient::find($validated['existing_ingredient_id']);
+        } else {
+            // Creating new ingredient
+            if (!$validated['name']) {
+                return back()->withErrors(['name' => 'Ingredient name is required when creating a new ingredient.']);
+            }
+            
+            $ingredient = Ingredient::firstOrCreate(
+                ['name' => $validated['name']],
+                ['default_unit_id' => $validated['unit_id']]
+            );
+        }
+
+        // Convert to canonical amount
+        $canonicalAmount = 0;
+        if ($validated['amount'] > 0) {
+            try {
+                $canonicalAmount = $unitConverter->convertToCanonical(
+                    $validated['amount'], 
+                    $unit, 
+                    $ingredient
+                );
+            } catch (\Exception $e) {
+                $canonicalAmount = $validated['amount'];
+            }
+        }
+
+        // Attach ingredient to recipe with amount, unit, and canonical amount
         $recipe->ingredients()->syncWithoutDetaching([
             $ingredient->id => [
                 'amount' => $validated['amount'],
-                'unit' => $validated['unit']
+                'unit' => $unit->slug, // Keep old field for backward compatibility
+                'unit_id' => $validated['unit_id'],
+                'canonical_amount' => $canonicalAmount
             ]
         ]);
 
@@ -155,32 +185,126 @@ class RecipeController extends Controller
     public function updateIngredient(Request $request, Recipe $recipe, Ingredient $ingredient)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
+            'name' => 'nullable|string|max:255',
+            'existing_ingredient_id' => 'nullable|exists:ingredients,id',
             'amount' => 'nullable|numeric|min:0',
-            'unit' => 'nullable|string|max:50'
+            'unit_id' => 'required|exists:units,id'
         ]);
 
-        // If ingredient name changed, find or create new ingredient
-        if ($ingredient->name !== $validated['name']) {
-            $newIngredient = Ingredient::firstOrCreate(
-                ['name' => $validated['name']],
-                ['default_unit' => $validated['unit']]
-            );
+        $unit = \App\Models\Unit::find($validated['unit_id']);
+        $unitConverter = new \App\Services\UnitConverter();
+
+        // Determine which ingredient to use
+        if ($validated['existing_ingredient_id']) {
+            // Using existing ingredient - check if it's different from current
+            $newIngredient = Ingredient::find($validated['existing_ingredient_id']);
             
-            // Remove old ingredient and add new one
-            $recipe->ingredients()->detach($ingredient->id);
-            $recipe->ingredients()->attach($newIngredient->id, [
-                'amount' => $validated['amount'],
-                'unit' => $validated['unit']
-            ]);
-            
-            $ingredient = $newIngredient;
+            if ($newIngredient->id !== $ingredient->id) {
+                // Remove old ingredient and add new one
+                $recipe->ingredients()->detach($ingredient->id);
+                
+                // Convert to canonical amount
+                $canonicalAmount = 0;
+                if ($validated['amount'] > 0) {
+                    try {
+                        $canonicalAmount = $unitConverter->convertToCanonical(
+                            $validated['amount'], 
+                            $unit, 
+                            $newIngredient
+                        );
+                    } catch (\Exception $e) {
+                        $canonicalAmount = $validated['amount'];
+                    }
+                }
+                
+                $recipe->ingredients()->attach($newIngredient->id, [
+                    'amount' => $validated['amount'],
+                    'unit' => $unit->slug,
+                    'unit_id' => $validated['unit_id'],
+                    'canonical_amount' => $canonicalAmount
+                ]);
+                
+                $ingredient = $newIngredient;
+            } else {
+                // Same ingredient, just update pivot data
+                $canonicalAmount = 0;
+                if ($validated['amount'] > 0) {
+                    try {
+                        $canonicalAmount = $unitConverter->convertToCanonical(
+                            $validated['amount'], 
+                            $unit, 
+                            $ingredient
+                        );
+                    } catch (\Exception $e) {
+                        $canonicalAmount = $validated['amount'];
+                    }
+                }
+                
+                $recipe->ingredients()->updateExistingPivot($ingredient->id, [
+                    'amount' => $validated['amount'],
+                    'unit' => $unit->slug,
+                    'unit_id' => $validated['unit_id'],
+                    'canonical_amount' => $canonicalAmount
+                ]);
+            }
         } else {
-            // Update pivot data only
-            $recipe->ingredients()->updateExistingPivot($ingredient->id, [
-                'amount' => $validated['amount'],
-                'unit' => $validated['unit']
-            ]);
+            // Creating/updating ingredient name
+            if (!$validated['name']) {
+                return back()->withErrors(['name' => 'Ingredient name is required when editing the ingredient name.']);
+            }
+            
+            if ($ingredient->name !== $validated['name']) {
+                $newIngredient = Ingredient::firstOrCreate(
+                    ['name' => $validated['name']],
+                    ['default_unit_id' => $validated['unit_id']]
+                );
+                
+                // Convert to canonical amount
+                $canonicalAmount = 0;
+                if ($validated['amount'] > 0) {
+                    try {
+                        $canonicalAmount = $unitConverter->convertToCanonical(
+                            $validated['amount'], 
+                            $unit, 
+                            $newIngredient
+                        );
+                    } catch (\Exception $e) {
+                        $canonicalAmount = $validated['amount'];
+                    }
+                }
+                
+                // Remove old ingredient and add new one
+                $recipe->ingredients()->detach($ingredient->id);
+                $recipe->ingredients()->attach($newIngredient->id, [
+                    'amount' => $validated['amount'],
+                    'unit' => $unit->slug,
+                    'unit_id' => $validated['unit_id'],
+                    'canonical_amount' => $canonicalAmount
+                ]);
+                
+                $ingredient = $newIngredient;
+            } else {
+                // Same name, just update pivot data
+                $canonicalAmount = 0;
+                if ($validated['amount'] > 0) {
+                    try {
+                        $canonicalAmount = $unitConverter->convertToCanonical(
+                            $validated['amount'], 
+                            $unit, 
+                            $ingredient
+                        );
+                    } catch (\Exception $e) {
+                        $canonicalAmount = $validated['amount'];
+                    }
+                }
+                
+                $recipe->ingredients()->updateExistingPivot($ingredient->id, [
+                    'amount' => $validated['amount'],
+                    'unit' => $unit->slug,
+                    'unit_id' => $validated['unit_id'],
+                    'canonical_amount' => $canonicalAmount
+                ]);
+            }
         }
 
         // Reload ingredient with pivot data

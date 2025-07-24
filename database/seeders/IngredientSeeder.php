@@ -55,6 +55,11 @@ class IngredientSeeder extends Seeder
             ['name' => 'Rice', 'default_unit_slug' => 'g'],
             ['name' => 'Pasta sauce', 'default_unit_slug' => 'ml'],
             ['name' => 'Mushrooms', 'default_unit_slug' => 'g'],
+            
+            // Additional ingredients for new recipes
+            ['name' => 'French bread', 'default_unit_slug' => 'piece'],
+            ['name' => 'Fresh parsley', 'default_unit_slug' => 'tbsp'],
+            ['name' => 'Red pepper flakes', 'default_unit_slug' => 'tsp'],
         ];
 
         foreach ($ingredients as $ingredientData) {
