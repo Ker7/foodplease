@@ -3,7 +3,7 @@
 
 ## 🎯 Application Overview
 
-**FoodPlease** is a comprehensive food management system built with Laravel 11, focusing on local-first architecture and progressive enhancement. The application enables users to manage recipes, track inventory, and plan weekly meals with intelligent shopping list generation.
+**FoodPlease** is a comprehensive food management system built with The Laravel 11 PHP framework, focusing on local-first architecture and progressive enhancement. The application enables users to manage recipes, track inventory, and plan weekly meals with intelligent shopping list generation.
 
 ### Core Philosophy
 - **Local-First**: SQLite database for offline capability

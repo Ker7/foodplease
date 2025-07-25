@@ -12,6 +12,7 @@ class Inventory extends Model
         'category',
         'quantity',
         'unit',
+        'unit_id',
         'location',
         'expiry_date',
         'low_stock_threshold'
@@ -43,5 +44,10 @@ class Inventory extends Model
     public function getIsLowStockAttribute(): bool
     {
         return $this->quantity <= $this->low_stock_threshold;
+    }
+
+    public function unit()
+    {
+        return $this->belongsTo(Unit::class);
     }
 }

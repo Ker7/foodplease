@@ -186,6 +186,43 @@
                     }
                     
                     $debugInfo['aggregated_ingredients_count'] = $aggregatedIngredients->count();
+                    
+                    // Group ingredients by typical storage location
+                    $ingredientsByLocation = collect();
+                    $locationCategories = [
+                        'fridge' => ['name' => 'Fridge', 'icon' => '🧊', 'color' => 'blue'],
+                        'pantry' => ['name' => 'Pantry', 'icon' => '🍽️', 'color' => 'green'],
+                        'freezer' => ['name' => 'Freezer', 'icon' => '❄️', 'color' => 'indigo']
+                    ];
+                    
+                    // Define ingredient storage mapping
+                    $ingredientStorageMap = [
+                        // Fridge items
+                        'fridge' => ['eggs', 'butter', 'milk', 'chicken breast', 'bell peppers', 'broccoli florets', 'fresh parsley', 'garlic', 'cheddar cheese', 'parmesan cheese', 'pancetta'],
+                        // Pantry items  
+                        'pantry' => ['spaghetti', 'all-purpose flour', 'brown sugar', 'white sugar', 'baking soda', 'salt', 'black pepper', 'vanilla extract', 'soy sauce', 'vegetable oil', 'chocolate chips', 'olive oil', 'red pepper flakes', 'french bread', 'ginger'],
+                        // Freezer items
+                        'freezer' => ['ground beef']
+                    ];
+                    
+                    foreach($aggregatedIngredients as $ingredientData) {
+                        $ingredientName = strtolower($ingredientData['name']);
+                        $location = 'pantry'; // default
+                        
+                        // Find the appropriate storage location
+                        foreach($ingredientStorageMap as $storageLocation => $ingredients) {
+                            if (in_array($ingredientName, $ingredients)) {
+                                $location = $storageLocation;
+                                break;
+                            }
+                        }
+                        
+                        if (!$ingredientsByLocation->has($location)) {
+                            $ingredientsByLocation->put($location, collect());
+                        }
+                        
+                        $ingredientsByLocation->get($location)->push($ingredientData);
+                    }
                 @endphp
                 
                 <!-- Debug Information (temporary) -->
@@ -224,8 +261,21 @@
                 
                 <!-- Shopping List -->
                 @if($aggregatedIngredients->count() > 0)
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        @foreach($aggregatedIngredients as $ingredientData)
+                    @foreach($locationCategories as $locationKey => $locationInfo)
+                        @if($ingredientsByLocation->has($locationKey) && $ingredientsByLocation->get($locationKey)->count() > 0)
+                            <div class="mb-8">
+                                <div class="bg-{{ $locationInfo['color'] }}-50 px-4 py-3 border-l-4 border-{{ $locationInfo['color'] }}-400 mb-4">
+                                    <div class="flex items-center">
+                                        <span class="text-2xl mr-3">{{ $locationInfo['icon'] }}</span>
+                                        <div>
+                                            <h3 class="text-lg font-medium text-gray-900">{{ $locationInfo['name'] }}</h3>
+                                            <p class="text-sm text-gray-600">{{ $ingredientsByLocation->get($locationKey)->count() }} ingredients</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    @foreach($ingredientsByLocation->get($locationKey) as $ingredientData)
                         @php
                             $displayUnit = $ingredientData['display_unit'];
                             $canonicalAmount = $ingredientData['canonical_amount'];
@@ -267,12 +317,12 @@
                                 @if(count($instances) >= 1)
                                     <div class="text-xs text-gray-400 mt-1">
                                         @if(count($instances) > 1)
-                                            Combined from {{ count($instances) }} recipes:
+                                            <p>Combined from {{ count($instances) }} recipes:</p>
                                         @else
                                             From recipe:
                                         @endif
                                         @foreach($instances as $instance)
-                                            <span class="inline-block">
+                                            <span class="block">
                                                 {{ $instance['amount'] }}{{ $instance['unit'] }}
                                                 @if(isset($instance['recipe']))
                                                     <span class="text-gray-300">({{ $instance['recipe'] }})</span>
@@ -287,8 +337,11 @@
                                 @endif
                             </div>
                         </div>
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endif
                     @endforeach
-                    </div>
                 @else
                     <div class="text-center py-12">
                         <div class="text-gray-500 text-lg mb-2">No ingredients found</div>

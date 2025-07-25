@@ -1,8 +1,39 @@
-<div class="bg-white shadow overflow-hidden sm:rounded-md">
-    <ul role="list" class="divide-y divide-gray-200">
-        @forelse($inventory as $item)
-            @include('inventory.partials.item', ['item' => $item])
-        @empty
+@php
+    $groupedInventory = $inventory->groupBy('category');
+    $categories = [
+        'fridge' => ['name' => 'Fridge', 'icon' => '🧊', 'color' => 'blue'],
+        'pantry' => ['name' => 'Pantry', 'icon' => '🍽️', 'color' => 'green'],
+        'freezer' => ['name' => 'Freezer', 'icon' => '❄️', 'color' => 'indigo']
+    ];
+@endphp
+
+@if($inventory->count() > 0)
+    @foreach($categories as $categoryKey => $categoryInfo)
+        @if($groupedInventory->has($categoryKey))
+            <div class="mb-4">
+                <div class="bg-{{ $categoryInfo['color'] }}-50 px-4 py-3 border-l-4 border-{{ $categoryInfo['color'] }}-400 mb-4">
+                    <div class="flex items-center gap-2">
+                        <span class="text-2xl mr-3">{{ $categoryInfo['icon'] }}</span>
+                        <div class="flex items-center gap-2">
+                            <h3 class="text-lg font-medium text-gray-900">{{ $categoryInfo['name'] }}</h3>
+                            <p class="text-sm text-gray-600">{{ $groupedInventory[$categoryKey]->count() }} items</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white shadow overflow-hidden sm:rounded-md">
+                    <ul role="list" class="divide-y divide-gray-200">
+                        @foreach($groupedInventory[$categoryKey] as $item)
+                            @include('inventory.partials.item', ['item' => $item])
+                        @endforeach
+                    </ul>
+                </div>
+            </div>
+        @endif
+    @endforeach
+@else
+    <div class="bg-white shadow overflow-hidden sm:rounded-md">
+        <ul role="list" class="divide-y divide-gray-200">
             <li class="px-6 py-12 text-center">
                 <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
@@ -21,6 +52,6 @@
                     </button>
                 </div>
             </li>
-        @endforelse
-    </ul>
-</div>
+        </ul>
+    </div>
+@endif

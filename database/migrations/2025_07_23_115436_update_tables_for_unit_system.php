@@ -17,11 +17,7 @@ return new class extends Migration
             $table->dropColumn('default_unit'); // Remove old string-based unit
         });
 
-        // Update inventories table to reference unit
-        Schema::table('inventories', function (Blueprint $table) {
-            $table->foreignId('unit_id')->nullable()->after('quantity')->constrained('units')->onDelete('set null');
-            // Keep the old 'unit' column for now - we'll migrate data then drop it
-        });
+        // Inventories table already has unit_id from initial migration - no changes needed
 
         // Update recipe_ingredients pivot to reference unit and store canonical amounts
         Schema::table('recipe_ingredients', function (Blueprint $table) {
@@ -42,10 +38,7 @@ return new class extends Migration
             $table->dropColumn('default_unit_id');
         });
 
-        Schema::table('inventories', function (Blueprint $table) {
-            $table->dropForeign(['unit_id']);
-            $table->dropColumn('unit_id');
-        });
+        // Inventories table unit_id is part of initial migration - no rollback needed
 
         Schema::table('recipe_ingredients', function (Blueprint $table) {
             $table->dropForeign(['unit_id']);
