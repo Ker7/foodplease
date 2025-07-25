@@ -32,13 +32,10 @@ Patched legacy unit addition. Tested with 10tbs on pasta into another recipe. Ag
 - [+] add option to remove recipe from meal plan and allow only one meal per breakfast/lunch/dinner
 - [+] add the "Clear button" to the top, after Breakfast/lunch title, and make the recipe title name wrap, as it is overflowing the container 
 - [+] aggregate the meal plan data correctly, with the same recipes current it is not summating all the ingredients, just showing for one, also remove js dialog that asks about removing the recipe
+- [+] ui: put the 'Total recipes' etc meal plan general info in another card just after the meal plan week grid and before the shopping list
+- [+] feat: added updating the meal plan when recipe is added/removed, added loader for it
 - [-]
-- [-]
-- [-]
-- [-]
-- [-] reload the meal plan page or update the shopping list with the addition of retraction of recipes from the meal plan
-- [-] put the 'Total recipes' etc meal plan general info in another card just after the meal plan week grid and before the shopping list
-- [-]
+- [?] bugfix: recipe managment in mealplan has problems: small X button, preselected 1st recipe should be "choose recipe" text, spinners arent spinning, top right button should persist, after adding a recipe the select should become hidden
 - [-]
 - [-] write tests
 - [-] seed proper data
