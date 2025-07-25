@@ -29,13 +29,17 @@ Fixed some bugs and aligned a bit the view, made ingredient Grouped Categoricall
 Patched legacy unit addition. Tested with 10tbs on pasta into another recipe. Aggregation worked nice!
 
 @todo's:
+- [+] add option to remove recipe from meal plan and allow only one meal per breakfast/lunch/dinner
+- [+] add the "Clear button" to the top, after Breakfast/lunch title, and make the recipe title name wrap, as it is overflowing the container 
+- [+] aggregate the meal plan data correctly, with the same recipes current it is not summating all the ingredients, just showing for one, also remove js dialog that asks about removing the recipe
 - [-]
-- [?] add option to remove recipe from meal plan and allow only one meal per breakfast/lunch/dinner
-- [-] add the "Clear button" to the top, after Breakfast/lunch title, and make the recipe title name wrap, as it is overflowing the container 
-- [-] aggregate the meal plan data correctly, with the same recipes current it is not summating all the ingredients, just showing for one, also remove js dialog that asks about removing the recipe
+- [-]
 - [-]
 - [-]
 - [-] reload the meal plan page or update the shopping list with the addition of retraction of recipes from the meal plan
+- [-] put the 'Total recipes' etc meal plan general info in another card just after the meal plan week grid and before the shopping list
+- [-]
+- [-]
 - [-] write tests
 - [-] seed proper data
 - [-] get rid of migrations that patch the broken data
