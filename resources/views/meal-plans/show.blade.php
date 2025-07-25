@@ -56,7 +56,7 @@
     </div>
 
     <!-- Shopping List Section -->
-    @if($mealPlan->getAllRecipes()->count() > 0)
+    @if(count($mealPlan->getAllRecipesWithDuplicates()) > 0)
         <div class="mt-8 bg-white shadow overflow-hidden sm:rounded-lg">
             <div class="px-4 py-5 sm:px-6">
                 <h3 class="text-lg leading-6 font-medium text-gray-900">Shopping List</h3>
@@ -75,10 +75,12 @@
                     $debugInfo['meal_plan_meals'] = $mealPlan->meals ?? [];
                     $debugInfo['meal_plan_id'] = $mealPlan->id;
                     
-                    // Get all recipes using the model method
-                    $allRecipes = $mealPlan->getAllRecipes();
-                    $debugInfo['all_recipes_count'] = $allRecipes->count();
-                    $debugInfo['all_recipes'] = $allRecipes->pluck('title', 'id')->toArray();
+                    // Get all recipes with duplicates for proper ingredient aggregation
+                    $allRecipes = $mealPlan->getAllRecipesWithDuplicates();
+                    $debugInfo['all_recipes_count'] = count($allRecipes);
+                    $debugInfo['all_recipes'] = collect($allRecipes)->map(function($recipe) {
+                        return $recipe->title;
+                    })->toArray();
                     
                     foreach($allRecipes as $recipe) {
                         $totalRecipes++;

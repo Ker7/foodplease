@@ -31,6 +31,11 @@ class WeeklyMealPlan extends Model
         $meals = $this->meals ?? [];
         $recipeId = $meals[$day][$mealType] ?? null;
         
+        // Handle both single recipe (new format) and arrays (legacy format)
+        if (is_array($recipeId)) {
+            $recipeId = $recipeId[0] ?? null;
+        }
+        
         return $recipeId ? Recipe::find($recipeId) : null;
     }
 
@@ -50,32 +55,22 @@ class WeeklyMealPlan extends Model
     public function addMealForDay(string $day, string $mealType, int $recipeId): void
     {
         $meals = $this->meals ?? [];
-        $currentMeals = $this->getMealsForDay($day, $mealType);
         
-        // Ensure we have a flat array of numeric recipe IDs
-        $currentMeals = array_values(array_filter($currentMeals, 'is_numeric'));
-        
-        if (!in_array($recipeId, $currentMeals)) {
-            $currentMeals[] = $recipeId;
-            $meals[$day][$mealType] = array_values($currentMeals);
-            $this->meals = $meals;
-        }
+        // Only allow one recipe per meal slot
+        $meals[$day][$mealType] = $recipeId;
+        $this->meals = $meals;
     }
 
-    public function removeMealForDay(string $day, string $mealType, int $recipeId): void
+    public function removeMealForDay(string $day, string $mealType, int $recipeId = null): void
     {
         $meals = $this->meals ?? [];
-        $currentMeals = $this->getMealsForDay($day, $mealType);
         
-        $currentMeals = array_filter($currentMeals, fn($id) => $id != $recipeId);
+        // Remove the meal slot entirely
+        unset($meals[$day][$mealType]);
         
-        if (empty($currentMeals)) {
-            unset($meals[$day][$mealType]);
-            if (empty($meals[$day])) {
-                unset($meals[$day]);
-            }
-        } else {
-            $meals[$day][$mealType] = array_values($currentMeals);
+        // Clean up empty day
+        if (empty($meals[$day])) {
+            unset($meals[$day]);
         }
         
         $this->meals = $meals;
@@ -119,5 +114,32 @@ class WeeklyMealPlan extends Model
         }
         
         return Recipe::whereIn('id', $uniqueRecipeIds)->get();
+    }
+
+    public function getAllRecipesWithDuplicates(): array
+    {
+        $recipes = [];
+        foreach ($this->meals ?? [] as $day => $dayMeals) {
+            foreach ($dayMeals as $mealType => $recipeData) {
+                // Handle both single recipe (new format) and arrays (legacy format)
+                if (is_array($recipeData)) {
+                    foreach ($recipeData as $recipeId) {
+                        if (is_numeric($recipeId)) {
+                            $recipe = Recipe::find($recipeId);
+                            if ($recipe) {
+                                $recipes[] = $recipe;
+                            }
+                        }
+                    }
+                } elseif (is_numeric($recipeData)) {
+                    $recipe = Recipe::find($recipeData);
+                    if ($recipe) {
+                        $recipes[] = $recipe;
+                    }
+                }
+            }
+        }
+        
+        return $recipes;
     }
 }

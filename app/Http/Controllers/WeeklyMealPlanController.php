@@ -104,20 +104,18 @@ class WeeklyMealPlanController extends Controller
             'day' => 'required|string|in:monday,tuesday,wednesday,thursday,friday,saturday,sunday',
             'meal_type' => 'required|string|in:breakfast,lunch,dinner',
             'recipe_id' => 'nullable|exists:recipes,id',
-            'action' => 'string|in:add,remove',
-            'remove_recipe_id' => 'nullable|exists:recipes,id'
+            'action' => 'string|in:add,remove,set'
         ]);
 
-        $action = $validated['action'] ?? 'add';
+        $action = $validated['action'] ?? 'set';
 
-        if ($action === 'remove' && $validated['remove_recipe_id']) {
+        if ($action === 'remove') {
             $mealPlan->removeMealForDay(
                 $validated['day'],
-                $validated['meal_type'],
-                $validated['remove_recipe_id']
+                $validated['meal_type']
             );
-        } elseif ($action === 'add' && $validated['recipe_id']) {
-            $mealPlan->addMealForDay(
+        } elseif (($action === 'add' || $action === 'set') && $validated['recipe_id']) {
+            $mealPlan->setMealForDay(
                 $validated['day'],
                 $validated['meal_type'],
                 $validated['recipe_id']
