@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Collection;
 use Carbon\Carbon;
 
 class WeeklyMealPlan extends Model
 {
+    use HasFactory;
     protected $fillable = [
         'name',
         'week_start',
