@@ -7,7 +7,6 @@
     "guzzlehttp/guzzle": "^7.9",
     "laravel/framework": "^11.31",
     "laravel/tinker": "^2.9",
-    "livewire/livewire": "^3.6",
     "spatie/laravel-data": "^4.17",
     "spatie/laravel-query-builder": "^6.3",
     "symfony/css-selector": "^7.3",
