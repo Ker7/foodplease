@@ -4,7 +4,9 @@
       "Bash(php artisan migrate:*)",
       "Bash(npm install:*)",
       "Bash(npm run dev:*)",
-      "Bash(php artisan test:*)"
+      "Bash(php artisan test:*)",
+      "Bash(php artisan migrate:fresh:*)",
+      "Bash(php artisan db:seed:*)"
     ]
   }
 }

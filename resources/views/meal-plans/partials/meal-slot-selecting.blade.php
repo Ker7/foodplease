@@ -37,7 +37,7 @@
               hx-indicator="#select-loader-{{ $day }}-{{ $mealType }}"
               class="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
               autofocus>
-        <option value="" disabled>Select recipe...</option>
+        <option value="" disabled selected>Select recipe...</option>
         @foreach($recipes as $availableRecipe)
           <option value="{{ $availableRecipe->id }}">{{ $availableRecipe->title }}</option>
         @endforeach

@@ -81,7 +81,7 @@
                 hx-trigger="change"
                 hx-indicator="#change-loader-{{ $day }}-{{ $mealType }}"
                 class="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
-          <option value="" disabled>Change recipe...</option>
+          <option value="" disabled selected>Change recipe...</option>
           @foreach($recipes as $availableRecipe)
             @if($availableRecipe->id !== $recipe->id)
               <option value="{{ $availableRecipe->id }}">{{ $availableRecipe->title }}</option>

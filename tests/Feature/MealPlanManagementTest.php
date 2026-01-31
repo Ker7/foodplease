@@ -374,4 +374,41 @@ class MealPlanManagementTest extends TestCase
         $this->assertTrue($activePlan->is_active);
         $this->assertFalse($inactivePlan->is_active);
     }
+
+    /** @test */
+    public function recipe_select_dropdown_shows_placeholder_as_selected()
+    {
+        $mealPlan = WeeklyMealPlan::factory()->create();
+        Recipe::factory()->count(3)->create();
+
+        $response = $this->get(
+            route('meal-plans.meals.show', $mealPlan) . '?day=monday&meal_type=breakfast&action=show_select',
+            ['HX-Request' => 'true']
+        );
+
+        $response->assertStatus(200);
+        // Verify placeholder option has both disabled and selected attributes
+        $response->assertSee('disabled selected>Select recipe...</option>', false);
+    }
+
+    /** @test */
+    public function can_select_first_recipe_in_list()
+    {
+        $mealPlan = WeeklyMealPlan::factory()->create();
+        // Create recipes - first one alphabetically or by ID should be selectable
+        $firstRecipe = Recipe::factory()->create(['title' => 'AAA First Recipe']);
+        Recipe::factory()->create(['title' => 'BBB Second Recipe']);
+
+        $response = $this->post(route('meal-plans.meals.update', $mealPlan), [
+            'day' => 'monday',
+            'meal_type' => 'breakfast',
+            'recipe_id' => $firstRecipe->id,
+            'action' => 'set'
+        ]);
+
+        $mealPlan->refresh();
+
+        // First recipe in list should be selectable
+        $this->assertEquals($firstRecipe->id, $mealPlan->meals['monday']['breakfast']);
+    }
 }
