@@ -164,7 +164,7 @@ class RecipeManagementTest extends TestCase
         $flour = Ingredient::create(['name' => 'Flour', 'default_unit_id' => $this->cup->id]);
 
         $response = $this->post(route('recipes.ingredients.store', $recipe), [
-            'ingredient_id' => $flour->id,
+            'existing_ingredient_id' => $flour->id,
             'amount' => 2,
             'unit_id' => $this->cup->id
         ]);
@@ -183,7 +183,7 @@ class RecipeManagementTest extends TestCase
         $recipe = Recipe::factory()->create();
 
         $response = $this->post(route('recipes.ingredients.store', $recipe), [
-            'ingredient_name' => 'New Ingredient',
+            'name' => 'New Ingredient',
             'amount' => 1.5,
             'unit_id' => $this->gram->id
         ]);
@@ -210,6 +210,7 @@ class RecipeManagementTest extends TestCase
         ]);
 
         $response = $this->put(route('recipes.ingredients.update', [$recipe, $sugar]), [
+            'existing_ingredient_id' => $sugar->id,
             'amount' => 2,
             'unit_id' => $this->cup->id
         ]);

@@ -124,15 +124,15 @@ class RecipeController extends Controller
         $unitConverter = new \App\Services\UnitConverter();
 
         // Determine which ingredient to use
-        if ($validated['existing_ingredient_id']) {
+        if (!empty($validated['existing_ingredient_id'])) {
             // Using existing ingredient
             $ingredient = Ingredient::find($validated['existing_ingredient_id']);
         } else {
             // Creating new ingredient
-            if (!$validated['name']) {
+            if (empty($validated['name'])) {
                 return back()->withErrors(['name' => 'Ingredient name is required when creating a new ingredient.']);
             }
-            
+
             $ingredient = Ingredient::firstOrCreate(
                 ['name' => $validated['name']],
                 ['default_unit_id' => $validated['unit_id']]
@@ -141,7 +141,7 @@ class RecipeController extends Controller
 
         // Convert to canonical amount
         $canonicalAmount = 0;
-        if ($validated['amount'] > 0) {
+        if (!empty($validated['amount']) && $validated['amount'] > 0) {
             try {
                 $canonicalAmount = $unitConverter->convertToCanonical(
                     $validated['amount'], 
@@ -156,7 +156,7 @@ class RecipeController extends Controller
         // Attach ingredient to recipe with amount, unit, and canonical amount
         $recipe->ingredients()->syncWithoutDetaching([
             $ingredient->id => [
-                'amount' => $validated['amount'],
+                'amount' => $validated['amount'] ?? 0,
                 'unit' => $unit->slug, // Keep old field for backward compatibility
                 'unit_id' => $validated['unit_id'],
                 'canonical_amount' => $canonicalAmount
