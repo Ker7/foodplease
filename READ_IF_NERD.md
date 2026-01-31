@@ -28,6 +28,9 @@ Fixed some bugs and aligned a bit the view, made ingredient Grouped Categoricall
 25.07.2025
 Patched legacy unit addition. Tested with 10tbs on pasta into another recipe. Aggregation worked nice!
 
+31.01.2026
+Meal Plan Recipe Management v1 complete: fixed dropdown placeholder selection (can now select first recipe). Added tests for this. Configured phpunit.xml to use in-memory DB so tests don't wipe dev data. Remaining UI polish for v2: small X button size, spinner animations, top right button persistence.
+
 @todo's:
 - [+] add option to remove recipe from meal plan and allow only one meal per breakfast/lunch/dinner
 - [+] add the "Clear button" to the top, after Breakfast/lunch title, and make the recipe title name wrap, as it is overflowing the container 
@@ -35,7 +38,7 @@ Patched legacy unit addition. Tested with 10tbs on pasta into another recipe. Ag
 - [+] ui: put the 'Total recipes' etc meal plan general info in another card just after the meal plan week grid and before the shopping list
 - [+] feat: added updating the meal plan when recipe is added/removed, added loader for it
 - [-]
-- [?] bugfix: recipe managment in mealplan has problems: small X button, preselected 1st recipe should be "choose recipe" text, spinners arent spinning, top right button should persist, after adding a recipe the select should become hidden
+- [-] Meal Plan Recipe Management v2: UI polish - small X button size, spinner animations, top right button persistence
 - [-]
 - [-] write tests
 - [-] seed proper data

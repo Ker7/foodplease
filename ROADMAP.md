@@ -22,7 +22,11 @@ FoodPlease is a local-first recipe and meal planning system built with Laravel 1
 
 ### 🚧 In Progress
 
-- **Meal Plan Recipe Management**: UI improvements for managing recipes within meal plans (WIP commit)
+- None currently
+
+### ✅ Recently Completed
+
+- **Meal Plan Recipe Management v1**: Fixed dropdown placeholder selection, first recipe now selectable. UI polish (button sizes, spinners) deferred to v2
 
 ### ❌ Not Yet Implemented
 
