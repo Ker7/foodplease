@@ -59,13 +59,18 @@
                     </div>
 
                     <div>
-                        <label for="unit" class="block text-sm font-medium text-gray-700">Unit</label>
-                        <input type="text" 
-                               name="unit" 
-                               id="unit"
-                               value="{{ $inventory->unit }}"
-                               placeholder="g, pieces, cups, etc."
-                               class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        <label for="unit_id" class="block text-sm font-medium text-gray-700">Unit</label>
+                        <select name="unit_id" 
+                                id="unit_id"
+                                required
+                                class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                            <option value="">Select unit...</option>
+                            @foreach(\App\Models\Unit::orderBy('name')->get() as $unit)
+                                <option value="{{ $unit->id }}" {{ $inventory->unit_id == $unit->id ? 'selected' : '' }}>
+                                    {{ $unit->name }} ({{ $unit->slug }})
+                                </option>
+                            @endforeach
+                        </select>
                     </div>
                 </div>
 

@@ -21,3 +21,4 @@ Route::resource('inventory', InventoryController::class);
 // Weekly meal plan routes
 Route::resource('meal-plans', WeeklyMealPlanController::class);
 Route::post('meal-plans/{mealPlan}/meals', [WeeklyMealPlanController::class, 'updateMeal'])->name('meal-plans.meals.update');
+Route::get('meal-plans/{mealPlan}/meals', [WeeklyMealPlanController::class, 'updateMeal'])->name('meal-plans.meals.show');

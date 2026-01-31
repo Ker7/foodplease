@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('name');
             $table->enum('category', ['fridge', 'pantry', 'freezer']);
             $table->decimal('quantity', 8, 2)->default(0);
-            $table->string('unit')->nullable();
+            $table->foreignId('unit_id')->constrained('units')->onDelete('cascade');
             $table->string('location')->nullable();
             $table->date('expiry_date')->nullable();
             $table->decimal('low_stock_threshold', 8, 2)->default(0);

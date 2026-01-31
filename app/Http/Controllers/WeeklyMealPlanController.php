@@ -104,35 +104,89 @@ class WeeklyMealPlanController extends Controller
             'day' => 'required|string|in:monday,tuesday,wednesday,thursday,friday,saturday,sunday',
             'meal_type' => 'required|string|in:breakfast,lunch,dinner',
             'recipe_id' => 'nullable|exists:recipes,id',
-            'action' => 'string|in:add,remove',
-            'remove_recipe_id' => 'nullable|exists:recipes,id'
+            'action' => 'string|in:add,remove,set,show_select,cancel_select'
         ]);
 
-        $action = $validated['action'] ?? 'add';
+        $action = $validated['action'] ?? 'set';
 
-        if ($action === 'remove' && $validated['remove_recipe_id']) {
+        // Handle UI state changes first (no database changes)
+        if ($action === 'show_select') {
+            if ($request->header('HX-Request')) {
+                return view('meal-plans.partials.meal-slot-selecting', [
+                    'mealPlan' => $mealPlan,
+                    'day' => $validated['day'],
+                    'mealType' => $validated['meal_type'],
+                    'recipes' => Recipe::all()
+                ]);
+            }
+            return back();
+        }
+
+        if ($action === 'cancel_select') {
+            if ($request->header('HX-Request')) {
+                return view('meal-plans.partials.meal-slot', [
+                    'mealPlan' => $mealPlan,
+                    'day' => $validated['day'],
+                    'mealType' => $validated['meal_type'],
+                    'recipes' => Recipe::all()
+                ]);
+            }
+            return back();
+        }
+
+        // Handle database changes
+        if ($action === 'remove') {
             $mealPlan->removeMealForDay(
                 $validated['day'],
                 $validated['meal_type'],
-                $validated['remove_recipe_id']
+                null
             );
-        } elseif ($action === 'add' && $validated['recipe_id']) {
-            $mealPlan->addMealForDay(
+            $mealPlan->save();
+        } elseif (($action === 'add' || $action === 'set') && $validated['recipe_id']) {
+            $mealPlan->setMealForDay(
                 $validated['day'],
                 $validated['meal_type'],
                 $validated['recipe_id']
             );
+            $mealPlan->save();
         }
-        
-        $mealPlan->save();
 
         if ($request->header('HX-Request')) {
-            return view('meal-plans.partials.meal-slot', [
-                'mealPlan' => $mealPlan,
-                'day' => $validated['day'],
-                'mealType' => $validated['meal_type'],
-                'recipes' => Recipe::all()
-            ]);
+            // For database-changing actions, update multiple targets
+            if (in_array($action, ['set', 'remove'])) {
+                // Get the meal slot HTML  
+                $mealSlotHtml = view('meal-plans.partials.meal-slot', [
+                    'mealPlan' => $mealPlan,
+                    'day' => $validated['day'],
+                    'mealType' => $validated['meal_type'],
+                    'recipes' => Recipe::all()
+                ])->render();
+                
+                // Get the overview section HTML
+                $overviewHtml = view('meal-plans.partials.overview', [
+                    'mealPlan' => $mealPlan
+                ])->render();
+                
+                // Get the shopping list HTML
+                $shoppingListHtml = view('meal-plans.partials.shopping-list', [
+                    'mealPlan' => $mealPlan
+                ])->render();
+                
+                // Create a response that updates multiple targets
+                $response = $mealSlotHtml;
+                $response .= '<div hx-swap-oob="innerHTML:#meal-plan-overview">' . $overviewHtml . '</div>';
+                $response .= '<div hx-swap-oob="innerHTML:#shopping-list">' . $shoppingListHtml . '</div>';
+                
+                return response($response)->header('Content-Type', 'text/html');
+            } else {
+                // For UI-only actions, just return the meal slot
+                return view('meal-plans.partials.meal-slot', [
+                    'mealPlan' => $mealPlan,
+                    'day' => $validated['day'],
+                    'mealType' => $validated['meal_type'],
+                    'recipes' => Recipe::all()
+                ]);
+            }
         }
 
         return back()->with('success', 'Meal updated successfully!');

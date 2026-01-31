@@ -23,22 +23,26 @@ class UnitConverter
         // Handle unit loading
         $fromUnit = $this->loadUnit($fromUnit);
         $toUnit = $this->loadUnit($toUnit);
-        
+
         // Same unit, no conversion needed
         if ($fromUnit->id === $toUnit->id) {
             return $amount;
         }
-        
-        // Check if units are of compatible types
-        if ($fromUnit->type !== $toUnit->type) {
+
+        $ingredientId = $ingredient ? ($ingredient instanceof Ingredient ? $ingredient->id : $ingredient) : null;
+
+        // Check if ingredient overrides exist for cross-type conversions
+        $hasFromOverride = $ingredientId && $this->getIngredientOverrideFactor($fromUnit, $ingredientId) !== null;
+        $hasToOverride = $ingredientId && $this->getIngredientOverrideFactor($toUnit, $ingredientId) !== null;
+
+        // Check if units are of compatible types (unless ingredient overrides allow cross-type conversion)
+        if ($fromUnit->type !== $toUnit->type && !($hasFromOverride || $hasToOverride)) {
             throw new \Exception("Cannot convert between different unit types: {$fromUnit->type} to {$toUnit->type}");
         }
-        
-        $ingredientId = $ingredient ? ($ingredient instanceof Ingredient ? $ingredient->id : $ingredient) : null;
-        
+
         // Convert from source unit to base unit
         $baseAmount = $this->convertToBase($amount, $fromUnit, $ingredientId);
-        
+
         // Convert from base unit to target unit
         return $this->convertFromBase($baseAmount, $toUnit, $ingredientId);
     }
